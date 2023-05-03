@@ -1,0 +1,7 @@
+sample,leaf_id,treatment,efferves
+control_1,c1,Control,14
+control_2,c2,Control,8
+control_3,c3,Control,6
+flood_1,f1,Flood,5
+flood_2,f2,Flood,6
+flood_3,f3,Flood,7
