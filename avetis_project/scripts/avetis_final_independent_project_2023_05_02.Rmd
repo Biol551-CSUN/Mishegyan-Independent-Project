@@ -3,9 +3,13 @@ title: "Avetis Mishegyan Final Independent Project"
 author: "Avetis Mishegyan"
 date: '`r Sys.Date()`'
 output:
-  html_document:
-    toc: TRUE
-    toc_float: TRUE
+  rmdformats::readthedown:
+    toc_depth: 3
+    self_contained: TRUE
+    thumbnails: TRUE
+    lightbox: TRUE
+    gallery: TRUE
+    highlight: espresso
 ---
 
 ```{r setup, include=FALSE}
@@ -24,7 +28,7 @@ Today we are going to present our final independent projects for Biol551 which s
   * it can be a plot, table, animation, unique useful functions, etc.
 * Give a 10-minute presentation to the class explaining the data set used  
 
-The data set that I will be using is based off my research project. My project's purpose is in the investigation of the genetic and physiological changes that occur in flood-stressed turmeric plants as compared to control
+The data set that I will be using is based off my research project. My project's purpose is in the investigation of the genetic and physiological changes in flood-stressed turmeric plants as compared to control turmeric. The following data consists of the 3 physiological assays using turmeric leaf samples. These assays include soluble sugar content, chlorophyll content, and catalase activity.
 
 
 ## Load Libraries
@@ -34,7 +38,9 @@ Here is where we will load any libraries that we will be using. These libraries 
 ```{r}
 library(tidyverse)
 library(here)
+library(performance) # for checking model assumptions
 library(alphonse) # for alphonse color palette
+library(viridis) # for viridis color palette
 ```
 
 ## Load Data
@@ -42,16 +48,21 @@ library(alphonse) # for alphonse color palette
 Here is where we will load (ie. pull) our data as a ".csv" format into our R script. Additionally, this is where we would also inspect our data.
 
 ```{r}
-undil_chloro_data <- read_csv(here("avetis_project", "data", "undiluted_turmeric_flood_chlorophyll_test_2022_12_23.csv")) # loads the data from a .csv file
-glimpse(undil_chloro_data) # allows us to inspect the data
+dil_chloro_data <- read_csv(here("avetis_project", "data", "diluted_turmeric_flood_chlorophyll_test_2022_12_23.csv")) # reads in data from a .csv file
+glimpse(dil_chloro_data) # allows us to inspect the data
 
-dil_chloro_data <- read_csv(here("avetis_project", "data", "diluted_turmeric_flood_chlorophyll_test_2022_12_23.csv"))
-glimpse(dil_chloro_data)
+catalase_data <- read_csv(here("avetis_project", "data", "turmeric_flood_catalase_test_2022_12_23.csv"))
+glimpse(catalase_data)
+
+sugar_data <- read_csv(here("avetis_project", "data", "turmeric_flood_sugar_test_2022_12_23.csv"))
+glimpse(sugar_data)
 ```
 
 ## Data Analysis
 
-### Total Chlorophyll Function
+### Chlorophyll Content Assay
+
+#### Total Chlorophyll Function
 
 ```{r}
 total_chlorophyll <- function(abs_645, abs_663) { # name of function, and list of inputs (ie. arguments)
@@ -64,20 +75,20 @@ total_chlorophyll <- function(abs_645, abs_663) { # name of function, and list o
 total_chlorophyll(.2, .8) # test of function
 ```
 
-### Total Chlorophyll Calculations for Diluted Samples
+#### Total Chlorophyll Calculations
 
 ```{r}
-total_calc_dil <- dil_chloro_data %>%
+mean_total_calc_dil <- dil_chloro_data %>%
   pivot_wider(names_from = abs,
               values_from = chloro_dil) %>%
   mutate(total_dil = total_chlorophyll(abs_645, abs_663)*5*10) %>%
   group_by(treatment) %>%
   summarise(mean_total_dil = mean(total_dil, na.rm = TRUE),
             sd_total_dil = sd(total_dil, na.rm = TRUE))
-glimpse(total_calc_dil)
+glimpse(mean_total_calc_dil)
 ```
 
-### Bar Plot Function
+#### Bar Plot Function
 
 ```{r}
 bar_plot <- function(data, x, y, fill, sd, lab_x, lab_y, title){ 
@@ -98,15 +109,91 @@ ggplot(data, aes(x = {{x}},
 }
 ```
 
-### Total Chlorophyll Bar Plot for Diluted Samples
+#### Total Chlorophyll Bar Plot
 
-```{r total_diluted_bar, fig.width=10, fig.height=5, fig.align='center',  fig.cap="Figure 2. The mean total chlorophyll of diluted extractions of all biological replicates consisting of 3 separate leaf samples for each biological replicate for each treatment is represented above. Biological replicates consisted of control: n = 3 and flood: n = 3. Error bars above represent standard deviation."}
-bar_plot(data = total_calc_dil,
+```{r total_chloro_bar, fig.width=10, fig.height=5, fig.align='center',  fig.cap="Figure 1. The mean total chlorophyll of extractions of all biological replicates consisting of 3 separate leaf samples for each biological replicate for each treatment is represented above. Biological replicates consisted of control: n = 3 and flood: n = 3. Error bars above represent standard deviation."}
+bar_plot(data = mean_total_calc_dil,
          x = treatment,
          y = mean_total_dil,
          fill = treatment,
          sd = sd_total_dil,
          lab_x = "Treatment",
          lab_y = "Mean Total Chlorophyll (mg)",
-         title = "Turmeric Mean Total Chlorophyll Diluted Flood v. Control")
+         title = "Turmeric Mean Total Chlorophyll Flood v. Control")
+```
+
+#### Total Chlorophyll Significance Analysis
+
+```{r total_chloro_mod_check, fig.width=10, fig.height=10, fig.align='center'}
+raw_total_calc_dil <- dil_chloro_data %>%
+  pivot_wider(names_from = abs,
+              values_from = chloro_dil) %>%
+  mutate(total_dil = total_chlorophyll(abs_645, abs_663)*5*10)
+glimpse(raw_total_calc_dil)
+
+total_chloro_mod <- lm(total_dil ~ treatment, data = raw_total_calc_dil) # runs a simple linear model
+
+check_model(total_chloro_mod) # checks assumptions of an lm model
+
+t.test(total_dil ~ treatment, data = raw_total_calc_dil) # runs a t-test analysis
+```
+### Sugar Content Assay
+
+#### Sugar Content Violin and Boxplot
+
+```{r sugar_violin_box, fig.width=10, fig.height=5, fig.align='center',  fig.cap="Figure 2. The median absorbance of soluble sugar of all biological replicates consisting of 3 separate leaf samples for each biological replicate for each treatment is represented above. Biological replicates consisted of control: n = 3 and flood: n = 3."}
+sugar_data %>% 
+  ggplot(aes(x = treatment,
+             y = sugar,
+             fill = treatment)) +
+  geom_violin(width = 1.4) + # violin plot function and adjusts width of box plot
+  geom_boxplot(width = 0.1, # box plot function and adjusts width of box plot
+               color = "grey", # sets color of box plot
+               alpha = 0.2) + # sets opacity of box plot
+  labs(x = "Treatment",
+       y = "Absorbance (630 nm)",
+       title = "Turmeric Soluable Sugar Content Flood v. Control") +
+  scale_fill_viridis(discrete = TRUE) + # colors violin using viridis color palette
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(plot.title = element_text(hjust = .5))
+```
+
+#### Sugar Significance Analysis
+
+```{r sugar_data_mod_check, fig.width=10, fig.height=10, fig.align='center'}
+sugar_data_mod <- lm(sugar ~ treatment, data = sugar_data)
+
+check_model(sugar_data_mod)
+
+t.test(sugar ~ treatment, data = sugar_data)
+```
+### Catalase Acivity Assay
+
+```{r catalase_box_jitter, fig.width=10, fig.height=5, fig.align='center',  fig.cap="Figure 3. The median effervescence volume of all biological replicates consists of biological replicates of control: n = 3 and flood: n = 3."}
+catalase_data %>%
+  ggplot(aes(x = treatment,
+             y = efferves,
+             fill = treatment)) +
+  geom_boxplot() +
+  geom_jitter(color = "black", # jitter plot function and sets color of jitter points
+              size = 1, # sets size of jitter points
+              alpha = 1) + # sets opacity of jitter points
+  labs(x = "Treatment",
+       y = "Effervescence Volume (mL)",
+       title = "Turmeric Catalase Activity Flood v. Control") +
+  scale_fill_manual(values = alphonse("jojo")) + # colors bars using alphonse color palette
+  theme_classic() +
+  theme(legend.position = "none") +
+  theme(plot.title = element_text(hjust = .5))
+```
+
+#### Catalase Significance Analysis
+
+```{r catalase_data_mod_check, fig.width=10, fig.height=10, fig.align='center'}
+catalase_data_mod <- lm(efferves ~ treatment, data = catalase_data)
+
+check_model(catalase_data_mod)
+
+t.test(efferves ~ treatment, data = catalase_data)
 ```
